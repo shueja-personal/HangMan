@@ -4,18 +4,22 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.util.ArrayList;
 
-import java.util.Dictionary;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Stack;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.awt.Font;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import java.util.function.Predicate;
+import java.util.Collections;
+import java.util.Map.Entry;
 
 public class HangMan implements KeyListener{
 	Stack<String> words = new Stack<String>();
+	String dictPath = "_04_HangMan/dictionary.txt";
 	int numWords;
 	int lettersLeft;
 	int lives = 10;
@@ -23,8 +27,9 @@ public class HangMan implements KeyListener{
 	ArrayList<Character> lettersWrong = new ArrayList<Character>();
 	ArrayList<Character> lettersRight = new ArrayList<Character>();
 	ArrayList<String> possibleWords = new ArrayList<String>();
+	ArrayList<Character> mostLikelyLetters = new ArrayList<Character>();
 	
-	ArrayList<String> possibleWordsFiltered = new ArrayList<String>();
+	List<String> possibleWordsFiltered;
 	public String currentWord;
 	public static String shownWord = "";
 	JFrame frame = new JFrame("HangMan");
@@ -35,24 +40,15 @@ public class HangMan implements KeyListener{
 			
 		}
 		numWords = 1;
-		/*while(true) { //keep looping until user enters integer for number of words
-			try {
-				numWords = Integer.parseInt(JOptionPane.showInputDialog("How many Words?"));
-				break;
-			} 
-			catch(NumberFormatException e){
-				JOptionPane.showMessageDialog(null, "Please enter a number between 0 and " + Utilities.getTotalWordsInFile("dictionary.txt"));
-			}
-		}*/
 		for (int i = 0; i < numWords;i++) { //push that many words to a stack.
-			String newWord = Utilities.readRandomLineFromFile("dictionary.txt");
+			String newWord = Utilities.readRandomLineFromFile(dictPath);
 			if (!words.contains(newWord)) {
 				words.push(newWord);
 			}
 		}
 
-		for (int i = 0; i < Utilities.getTotalWordsInFile("dictionary.txt"); i++){
-			possibleWords.add(Utilities.readLineFromFile("dictionary.txt", i));
+		for (int i = 0; i < Utilities.getTotalWordsInFile(dictPath); i++){
+			possibleWords.add(Utilities.readLineFromFile(dictPath, i));
 		}
 		lettersGuessed.add('w');
 		lettersGuessed.add('r');
@@ -137,6 +133,9 @@ public class HangMan implements KeyListener{
 	}
 
 	public char AI(){
+		HashMap<Character, Integer> charCounts = new HashMap<Character,Integer>();
+		mostLikelyLetters = new ArrayList<Character>();
+		charCounts.put('a', 0);
 		possibleWordsFiltered = possibleWords;
 		System.out.println();
 		String regex = shownWord.replace('_', '.');
@@ -154,57 +153,45 @@ public class HangMan implements KeyListener{
 			Predicate<String> wordFilter = Pattern.compile(regex).asPredicate();
 			possibleWords.removeIf(p -> p.length() != length);
 
-			possibleWords.stream().filter(wordFilter).forEach(e->possibleWordsFiltered.add(e));
-			possibleWordsFiltered.removeIf(p -> !possibleWordsFiltered.contains(p));
+			possibleWordsFiltered = possibleWords.stream().filter(wordFilter).collect(Collectors.toList());/*forEach(e->possibleWordsFiltered.add(e));*/
+			//possibleWordsFiltered.removeIf(p -> !possibleWordsFiltered.contains(p));
 			System.out.println("Filtered by regex" + possibleWordsFiltered);
+			if(possibleWordsFiltered.size() != 1) {
 
-			//filtering based on the wrong letters
-			for (char character: lettersWrong) {
-				possibleWordsFiltered.removeIf(p -> p.contains(character+""));
-			}
-			System.out.println("Filtered by wrong letters" + possibleWordsFiltered);
-		}
-
-
-		
-
-
-
-		//reset arraylists that might have been previously used.
-		/**possibleWordsInChars = new ArrayList<ArrayList<Character>>();
-
-		//eliminate all words that are the wrong length.
-		
-		//find most common letter that has not already been guessed.
-		for (String string : possibleWords) {
-			ArrayList<Character> word = new ArrayList<>();
-			for (int i = 0; i < string.length(); i++) {
-				word.add(string.charAt(i));
-			}
-			possibleWordsInChars.add(word);
-		}
-		System.out.println(possibleWordsInChars);
-		possibleWordsInChars.removeIf(charList -> {boolean needToRemove = false; //return true to rmove word
-			for (int i = 0; i < charList.size(); i++) {// go through each character in the word from possible list
-				if (charList.get(i) != shownWord.charAt(i) && shownWord.charAt(i) != '_' && needToRemove != true){
-					needToRemove = false;
+				//filtering based on the wrong letters
+				for (char character: lettersWrong) {
+					possibleWordsFiltered.removeIf(p -> p.contains(character+""));
 				}
-				else {
-					needToRemove = true;
-					break;
-				} // ends else statment
-		}//ends for loop
-		return needToRemove;
-		}//ends code chunk
-		)//ends predicate
-		;//ends line *whew*		
-				// if the char at the chosen word does not match the shown position 
-				// and the char at the shown pos is not a blank
-				// then remove the char list from the possible words.**/
-		//System.out.println("possible words: " + possibleWords);
-		
+				System.out.println("Filtered by wrong letters" + possibleWordsFiltered);
 
+				if(possibleWordsFiltered.size() != 1) {
+					//filtering out words that contain the wrong number of a correctly guessed letter.
+					for (char character: lettersRight) {
+						possibleWordsFiltered.removeIf(p -> shownWord.codePoints().filter(ch -> ch == character).count() != p.codePoints().filter(ch -> ch == character).count());
+					}
+					System.out.println("Eliminating words with wrong number of a correct letter"+ possibleWordsFiltered);
+				}
+			}
+			for (char ch = 'a'; ch <= 'z'; ++ch){
+				charCounts.put(ch, 0);
+			}
+			for (String str: possibleWordsFiltered) {
+				for (char ch = 'a'; ch <= 'z'; ++ch){
+					if(!lettersGuessed.contains(ch))
+					charCounts.put(ch, charCounts.get(ch) + Utilities.occurenceOf(ch, str)); //TODO: Need to replace this with occurence of character
 
-		return 'e';
+				}	
+			}
+			}
+			System.out.println("Frequencies of Chars in Remaining Words" + charCounts);
+			
+			int maxValueInMap=(Collections.max(charCounts.values()));  // This will return max value in the Hashmap
+			for (Entry<Character, Integer> entry : charCounts.entrySet()) {  // Itrate through hashmap
+				if (entry.getValue()==maxValueInMap){
+					mostLikelyLetters.add(entry.getKey());
+				}
+			}
+			System.out.println(mostLikelyLetters);
+		return mostLikelyLetters.get(0);
 	}
 }

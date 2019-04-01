@@ -1,0 +1,17 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "CodeLens (Launch) - HangMan",
+            "request": "launch",
+            "mainClass": "_04_HangMan.HangMan"
+        },
+        {
+            "type": "java",
+            "name": "CodeLens (Launch) - HangMan",
+            "request": "launch",
+            "mainClass": "_04_HangMan.HangMan",
+            "projectName": "HangMan_3fd6382c"
+        }
+    ]
+}

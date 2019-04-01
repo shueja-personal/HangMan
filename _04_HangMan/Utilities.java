@@ -72,4 +72,8 @@ public class Utilities {
 
 		return word;
 	}
+	public static int occurenceOf(char character, String str) {
+		int count = str.length() - str.replace(character + "", "").length();
+		return count;
+	}
 }
